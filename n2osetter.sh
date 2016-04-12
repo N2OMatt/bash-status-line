@@ -36,7 +36,7 @@ n2o_find_local_branch()
 n2o_find_remote_branch()
 {
     unset GIT_REMOTE_BRANCH;
-    GIT_REMOTE_BRANCH=$(git branch -r | cut -d">" -f2 | sort -r | head -n1 \
+    GIT_REMOTE_BRANCH=$(git branch -r | cut -d">" -f2 | head -n1 \
                         | sed s/^" "*/""/g); #Remove the leading spaces.
 }
 
