@@ -31,6 +31,7 @@ n2o_find_local_branch()
     GIT_LOCAL_BRANCH=$(git branch 2> /dev/null                  \
                        | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1 /' \
                        | sed s/$" "/""/g); #Remove the trailing spaces.
+    echo $GIT_LOCAL_BRANCH;
 }
 
 n2o_find_remote_branch()
@@ -38,16 +39,21 @@ n2o_find_remote_branch()
     unset GIT_REMOTE_BRANCH;
     GIT_REMOTE_BRANCH=$(git branch -r | cut -d">" -f2 | head -n1 \
                         | sed s/^" "*/""/g); #Remove the leading spaces.
+    echo $GIT_REMOTE_BRANCH;
 }
 
 n2o_find_number_commits()
 {
     unset GIT_NUMBER_COMMITS;
+    GIT_NUMBER_COMMITS="0";
+
     GIT_NUMBER_COMMITS=$(git status 2> /dev/null -suno | wc -l);
 
     if [ "$GIT_NUMBER_COMMITS" != "0" ]; then
         GIT_HAS_SOMETHING_TODO="true";
     fi;
+
+    echo $GIT_NUMBER_COMMITS;
 }
 
 n2o_find_last_tag()
@@ -65,11 +71,15 @@ n2o_find_last_tag()
     if [ "$real_last_tag" != "$GIT_LAST_TAG" ]; then
         GIT_LAST_TAG="$real_last_tag+"; #Append a + sign to indicate this.
     fi;
+
+    echo $GIT_LAST_TAG;
 }
 
 n2o_find_number_pushs()
 {
     unset GIT_NUMBER_PUSHS;
+    GIT_NUMBER_PUSHS="0";
+
     #We must have local and remote to do this.
     if [ -n "$GIT_LOCAL_BRANCH" -a -n "$GIT_REMOTE_BRANCH" ]; then
         GIT_NUMBER_PUSHS=$(git log 2> /dev/null \
@@ -80,11 +90,15 @@ n2o_find_number_pushs()
     if [ "$GIT_NUMBER_PUSHS" != "0" ]; then
         GIT_HAS_SOMETHING_TODO="true";
     fi;
+
+    echo $GIT_NUMBER_PUSHS;
 }
 
 n2o_find_number_pulls()
 {
     unset GIT_NUMBER_PULLS;
+    GIT_NUMBER_PULLS="0";
+
     #We must have local and remote to do this.
     if [ -n "$GIT_LOCAL_BRANCH" -a -n "$GIT_REMOTE_BRANCH" ]; then
         GIT_NUMBER_PULLS=$(git log 2> /dev/null \
@@ -95,6 +109,8 @@ n2o_find_number_pulls()
     if [ "$GIT_NUMBER_PULLS" != "0" ]; then
         GIT_HAS_SOMETHING_TODO="true";
     fi;
+
+    echo $GIT_NUMBER_PULLS;
 }
 
 ################################################################################
@@ -144,7 +160,7 @@ n2o_build_str_git_last_tag()
 
 n2o_build_str_git_number_pushs()
 {
-    if [ -z "$GIT_NUMBER_PUSHS" ]; then
+    if [ -z "$GIT_REMOTE_BRANCH" ]; then
         return;
     fi;
 
@@ -161,7 +177,7 @@ n2o_build_str_git_number_pushs()
 
 n2o_build_str_git_number_pulls()
 {
-    if [ -z "$GIT_NUMBER_PULLS" ]; then
+    if [ -z "$GIT_REMOTE_BRANCH" ]; then
         return;
     fi;
 
@@ -190,18 +206,18 @@ n2o_set_git_info()
     GIT_HAS_SOMETHING_TODO="false";
 
     ##Assume that we're in git dir and get the local branch name.
-    n2o_find_local_branch;
+    n2o_find_local_branch > /dev/null;
 
     #Not in a git repo - Nothing to do anymore...
     if [ -z $GIT_LOCAL_BRANCH ]; then
         return;
     fi
 
-    n2o_find_last_tag;
-    n2o_find_number_commits;
-    n2o_find_remote_branch;
-    n2o_find_number_pushs;
-    n2o_find_number_pulls;
+    n2o_find_last_tag       > /dev/null;
+    n2o_find_number_commits > /dev/null;
+    n2o_find_remote_branch  > /dev/null;
+    n2o_find_number_pushs   > /dev/null;
+    n2o_find_number_pulls   > /dev/null;
 
     n2o_build_str_git_last_tag;
     n2o_build_str_git_local_branch;
