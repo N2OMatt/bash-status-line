@@ -216,6 +216,7 @@ n2o_set_dir_info()
     unset DIR_INFO;
     unset DIR_TOTAL_CHARS;
 
+    #COWTODO: We must handle the root.
     DIR_INFO=$(basename $(dirname "$PWD"))/$(basename "$PWD")
 
     DIR_INFO_SIZE=${#DIR_INFO};
