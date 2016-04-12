@@ -45,7 +45,7 @@ n2o_find_number_commits()
     unset GIT_NUMBER_COMMITS;
     GIT_NUMBER_COMMITS=$(git status 2> /dev/null -suno | wc -l);
 
-    if [ $GIT_NUMBER_COMMITS != "0" ]; then
+    if [ "$GIT_NUMBER_COMMITS" != "0" ]; then
         GIT_HAS_SOMETHING_TODO="true";
     fi;
 }
@@ -77,7 +77,7 @@ n2o_find_number_pushs()
                            | wc -l);
     fi;
 
-    if [ $GIT_NUMBER_PUSHS != "0" ]; then
+    if [ "$GIT_NUMBER_PUSHS" != "0" ]; then
         GIT_HAS_SOMETHING_TODO="true";
     fi;
 }
@@ -92,7 +92,7 @@ n2o_find_number_pulls()
                            | wc -l);
     fi;
 
-    if [ $GIT_NUMBER_PULLS != "0" ]; then
+    if [ "$GIT_NUMBER_PULLS" != "0" ]; then
         GIT_HAS_SOMETHING_TODO="true";
     fi;
 }
