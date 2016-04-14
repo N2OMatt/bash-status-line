@@ -37,7 +37,7 @@ n2o_find_local_branch()
 n2o_find_remote_branch()
 {
     unset GIT_REMOTE_BRANCH;
-    GIT_REMOTE_BRANCH=$(git branch -r | cut -d">" -f2 | head -n1 \
+    GIT_REMOTE_BRANCH=$(git branch -r | cut -d">" -f2 | sort -r | head -n1 \
                         | sed s/^" "*/""/g); #Remove the leading spaces.
     echo $GIT_REMOTE_BRANCH;
 }
@@ -59,6 +59,8 @@ n2o_find_number_commits()
 n2o_find_last_tag()
 {
     unset GIT_LAST_TAG;
+    unset GIT_LAST_TAG_SYNCED_WITH_REMOTE;
+
     #[1] Find all tags and sort by date.
     #[2] Get the newer entries - Make multiline - Remove the ()
     #[3] Get lines with "tag" and remove it from them.
@@ -70,6 +72,35 @@ n2o_find_last_tag()
     local real_last_tag=$(echo $GIT_LAST_TAG | sed s/" "/"\n"/g | head -n1);
     if [ "$real_last_tag" != "$GIT_LAST_TAG" ]; then
         GIT_LAST_TAG="$real_last_tag+"; #Append a + sign to indicate this.
+    fi;
+
+
+    # 1 - Get all log with tags - refs and remotes
+    # 2 - Get all commit [SHA] lines only
+    # 3 - Remote the commit [SHA] stuff.
+    # 4 - Just add numbers...
+    # 5 - Get the line that has the info about our current remote.
+    # 6 - Get the number added in step #4.
+    local remote_commit=$(git log --decorate=full                 | \
+                          egrep  "commit [[:alnum:]]{40} .*"      | \
+                          sed -r s/"commit [[:alnum:]]{40} "/""/g | \
+                          egrep -n "*"                            | \
+                          egrep "refs/remotes/$GIT_REMOTE_BRANCH" | \
+                          cut -d":" -f1);
+
+    #Same from remote_commit, but the the our current tag info.
+    local tag_commit=$(git log --decorate=full                 | \
+                       egrep  "commit [[:alnum:]]{40} .*"      | \
+                       sed -r s/"commit [[:alnum:]]{40} "/""/g | \
+                       egrep -n "*"                            | \
+                       egrep "refs/tags/$GIT_LAST_TAG"         | \
+                       cut -d":" -f1);
+
+    #Check if them are equal...
+    if [ "$remote_commit" = "$tag_commit" ]; then
+        GIT_LAST_TAG_SYNCED_WITH_REMOTE="true";
+    else
+        GIT_LAST_TAG_SYNCED_WITH_REMOTE="false";
     fi;
 
     echo $GIT_LAST_TAG;
@@ -151,8 +182,12 @@ n2o_build_str_git_last_tag()
         return;
     fi;
 
-    local SC="${FG_Y}";
+    local SC="${FG_R}";
     local EC="${RESET}";
+
+    if [ "$GIT_LAST_TAG_SYNCED_WITH_REMOTE" == "true" ]; then
+        SC="${FG_G}";
+    fi
 
     GIT_INFO+="(${SC}$GIT_LAST_TAG${EC})";
     GIT_TOTAL_CHARS=$(( GIT_TOTAL_CHARS + ${#GIT_LAST_TAG} + 2 ));
