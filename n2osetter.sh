@@ -101,6 +101,7 @@ n2o_find_last_tag()
         GIT_LAST_TAG_SYNCED_WITH_REMOTE="true";
     else
         GIT_LAST_TAG_SYNCED_WITH_REMOTE="false";
+        GIT_HAS_SOMETHING_TODO="true";
     fi;
 
     echo $GIT_LAST_TAG;
