@@ -20,7 +20,7 @@ BG_Y="\033[43m"
 BG_B="\033[44m"
 BG_M="\033[45m"
 BG_C="\033[46m"
-
+BG_W="\033[47m"
 
 ################################################################################
 ## Find GIT Info Functions                                                    ##
@@ -74,7 +74,6 @@ n2o_find_last_tag()
         GIT_LAST_TAG="$real_last_tag+"; #Append a + sign to indicate this.
     fi;
 
-
     # 1 - Get all log with tags - refs and remotes
     # 2 - Get all commit [SHA] lines only
     # 3 - Remote the commit [SHA] stuff.
@@ -97,14 +96,24 @@ n2o_find_last_tag()
                        cut -d":" -f1);
 
     #Check if them are equal...
-    if [ "$remote_commit" = "$tag_commit" ]; then
-        GIT_LAST_TAG_SYNCED_WITH_REMOTE="true";
-    else
-        GIT_LAST_TAG_SYNCED_WITH_REMOTE="false";
-        GIT_HAS_SOMETHING_TODO="true";
+    GIT_LAST_TAG_SYNCED_WITH_REMOTE="same";
+    if [ -n "$remote_commit" -a -n "$tag_commit" ]; then
+        echo "OK";
+        if [ "$remote_commit" -lt "$tag_commit" ]; then
+            GIT_LAST_TAG_SYNCED_WITH_REMOTE="remote-ahead";
+            GIT_HAS_SOMETHING_TODO="true";
+        elif [ "$remote_commit" -gt "$tag_commit" ]; then
+            GIT_LAST_TAG_SYNCED_WITH_REMOTE="local-ahead";
+            GIT_HAS_SOMETHING_TODO="true";
+        fi;
+
     fi;
 
-    echo $GIT_LAST_TAG;
+    echo "GIT_LAST_TAG       $GIT_LAST_TAG";
+    echo "GIT_REMOTE_BRANCH" $GIT_REMOTE_BRANCH;
+    echo "tag_commit         $tag_commit";
+    echo "remote_commit      $remote_commit";
+    echo "GIT_LAST_TAG_SYNCED_WITH_REMOTE $GIT_LAST_TAG_SYNCED_WITH_REMOTE";
 }
 
 n2o_find_number_pushs()
@@ -183,15 +192,20 @@ n2o_build_str_git_last_tag()
         return;
     fi;
 
-    local SC="${FG_R}";
+    local SC="${FG_Y}";
     local EC="${RESET}";
+    local sync_info=""
 
-    if [ "$GIT_LAST_TAG_SYNCED_WITH_REMOTE" == "true" ]; then
-        SC="${FG_G}";
-    fi
+    if [ "$GIT_LAST_TAG_SYNCED_WITH_REMOTE" = "same" ]; then
+        sync_info="${FG_G}[S]${EC}";
+    elif [ "$GIT_LAST_TAG_SYNCED_WITH_REMOTE" = "remote-ahead" ]; then
+        sync_info="${FG_R}[c]${EC}";
+    elif [ "$GIT_LAST_TAG_SYNCED_WITH_REMOTE" = "local-ahead" ]; then
+        sync_info="${BG_R}${FG_W}[P]${EC}";
+    fi;
 
-    GIT_INFO+="(${SC}$GIT_LAST_TAG${EC})";
-    GIT_TOTAL_CHARS=$(( GIT_TOTAL_CHARS + ${#GIT_LAST_TAG} + 2 ));
+    GIT_INFO+="(${SC}$GIT_LAST_TAG${EC}$sync_info)";
+    GIT_TOTAL_CHARS=$(( GIT_TOTAL_CHARS + ${#GIT_LAST_TAG} + 2 + 3 ));
 }
 
 n2o_build_str_git_number_pushs()
@@ -249,9 +263,9 @@ n2o_set_git_info()
         return;
     fi
 
-    n2o_find_last_tag       > /dev/null;
     n2o_find_number_commits > /dev/null;
     n2o_find_remote_branch  > /dev/null;
+    n2o_find_last_tag       > /dev/null;
     n2o_find_number_pushs   > /dev/null;
     n2o_find_number_pulls   > /dev/null;
 
@@ -279,12 +293,17 @@ n2o_set_dir_info()
         DIR_INFO="..."${DIR_INFO:$CHARS_TO_CUT:$DIR_INFO_SIZE }
     fi;
 
-    SC=${BG_G};
-    EC=${RESET};
 
-    if [ "$GIT_HAS_SOMETHING_TODO" = "true" ]; then
-        SC=${BG_R};
-    fi;
+    local SC=${BG_W};
+    local EC=${RESET};
+
+    if [ -n "$GIT_LOCAL_BRANCH" ]; then
+        SC=${BG_G}
+
+        if [ "$GIT_HAS_SOMETHING_TODO" = "true" ]; then
+            SC=${BG_R};
+        fi;
+    fi
 
     SC+=${FG_K};
 
