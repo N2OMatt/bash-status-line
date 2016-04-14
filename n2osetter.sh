@@ -282,8 +282,21 @@ n2o_set_dir_info()
     unset DIR_INFO;
     unset DIR_TOTAL_CHARS;
 
-    #COWTODO: We must handle the root.
-    DIR_INFO=$(basename $(dirname "$PWD"))/$(basename "$PWD")
+    #If we are / or one level below / (ex: /usr, /bin)
+    #take more care to not print extra slashes.
+    local head_path=$(basename $(dirname "$PWD"));
+    local tail_path=$(basename "$PWD");
+    local separator="/";
+
+    if [ "$head_path" = "/" ]; then
+        separator="";
+        if [ "$tail_path" = "/" ]; then
+            tail_path="";
+        fi;
+    fi;
+
+
+    DIR_INFO="$head_path$separator$tail_path";
 
     DIR_INFO_SIZE=${#DIR_INFO};
     CHARS_TO_CUT=$(( ($COLUMNS - (${#DIR_INFO} + $GIT_TOTAL_CHARS)) * -1 ));
