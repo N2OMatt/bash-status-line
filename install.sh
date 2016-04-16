@@ -12,6 +12,7 @@ if [ -e $HOME/.bashrc ]; then
 
     if [ -z  "$GREP_RESULT" ]; then
         echo "[[ -s \"$FILENAME\" ]] && source \"$FILENAME\"" >> $HOME/.bashrc;
+	echo "Installed...";
     fi;
 
 fi
