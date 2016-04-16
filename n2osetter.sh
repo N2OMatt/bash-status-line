@@ -98,7 +98,6 @@ n2o_find_last_tag()
     #Check if them are equal...
     GIT_LAST_TAG_SYNCED_WITH_REMOTE="same";
     if [ -n "$remote_commit" -a -n "$tag_commit" ]; then
-        echo "OK";
         if [ "$remote_commit" -lt "$tag_commit" ]; then
             GIT_LAST_TAG_SYNCED_WITH_REMOTE="remote-ahead";
             GIT_HAS_SOMETHING_TODO="true";
@@ -242,7 +241,6 @@ n2o_build_str_git_number_pulls()
     GIT_TOTAL_CHARS=$(( GIT_TOTAL_CHARS + ${#GIT_NUMBER_PULL} + 2 ));
 }
 
-
 ################################################################################
 ## Set functions                                                              ##
 ################################################################################
@@ -298,12 +296,14 @@ n2o_set_dir_info()
 
     DIR_INFO="$head_path$separator$tail_path";
 
-    DIR_INFO_SIZE=${#DIR_INFO};
-    CHARS_TO_CUT=$(( ($COLUMNS - (${#DIR_INFO} + $GIT_TOTAL_CHARS)) * -1 ));
+    local dir_info_size=${#DIR_INFO};
+    local max_dir_info_size=$(( $COLUMNS - ($GIT_TOTAL_CHARS + 2) ));
+                                            #2 is for [ ] in the dir info.
 
-    if [ $CHARS_TO_CUT -gt 0 ]; then
-        CHARS_TO_CUT=$(( CHARS_TO_CUT + 6 ));
-        DIR_INFO="..."${DIR_INFO:$CHARS_TO_CUT:$DIR_INFO_SIZE }
+    if [ $dir_info_size -gt $max_dir_info_size ]; then
+                                                #3 is for the ellipsis ...
+        local chars_to_cut=$(( (dir_info_size - max_dir_info_size) + 3 ));
+        DIR_INFO="..."${DIR_INFO:$chars_to_cut:$dir_info_size }
     fi;
 
 
