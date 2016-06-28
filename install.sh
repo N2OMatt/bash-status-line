@@ -11,8 +11,8 @@ if [ -e $HOME/.bashrc ]; then
     GREP_RESULT=$(cat $HOME/.bashrc | grep "$FILENAME");
 
     if [ -z  "$GREP_RESULT" ]; then
-        echo "[[ -s \"$FILENAME\" ]] && source \"$FILENAME\"" >> $HOME/.bashrc;
-	echo "Installed...";
+        echo "[[ -s \"$FILENAME\" ]] && source \"$FILENAME\"" >> $HOME/.bashrc;	
     fi;
 
+    echo "Installed...";
 fi
