@@ -4,15 +4,18 @@ source ~/.n2o/bash-status-line/n2osetter.sh
 
 if [ -n "$PROMPT_COMMAND" ] ; then
     WRAPPED_PROMPT_COMMAND=${PROMPT_COMMAND}
-fi
+fi;
 
 n2o_update_prompt()
 {
-    if [ -n "$WRAPPED_PROMPT_COMMAND" ]; then
-        ${WRAPPED_PROMPT_COMMAND}
-    fi
+    if [ "$BASH_STATUS_LINE" != "disabled" ]; then
 
-    n2o_update_status_line
+        if [ -n "$WRAPPED_PROMPT_COMMAND" ]; then
+            ${WRAPPED_PROMPT_COMMAND}
+        fi;
+
+        n2o_update_status_line
+    fi;
 }
 
 PROMPT_COMMAND=n2o_update_prompt
