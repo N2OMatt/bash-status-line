@@ -282,7 +282,7 @@ n2o_set_dir_info()
 
     #If we are / or one level below / (ex: /usr, /bin)
     #take more care to not print extra slashes.
-    local head_path=$(basename $(dirname "$PWD"));
+    local head_path=$(basename "$(dirname "$PWD")");
     local tail_path=$(basename "$PWD");
     local separator="/";
 
