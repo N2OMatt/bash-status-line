@@ -64,14 +64,21 @@ n2o_find_last_tag()
     #[1] Find all tags and sort by date.
     #[2] Get the newer entries - Make multiline - Remove the ()
     #[3] Get lines with "tag" and remove it from them.
-    GIT_LAST_TAG=$(git log --tags --simplify-by-decoration --pretty="format:%d" \
-                   | head -n1 | sed s/","/"\n"/g | sed s/"[(|)]"/""/g           \
-                   | grep tag | sed s/" tag: "/""/g);
+    GIT_LAST_TAG=$(git describe --tags --abbrev=0);
 
     #Check if we have more than one tag...
     local real_last_tag=$(echo $GIT_LAST_TAG | sed s/" "/"\n"/g | head -n1);
     if [ "$real_last_tag" != "$GIT_LAST_TAG" ]; then
         GIT_LAST_TAG="$real_last_tag+"; #Append a + sign to indicate this.
+    fi;
+
+    ## BSD you idiot...
+    ##   This is needed because OSX use the shit BSD version
+    ##   of sed that isn't compatible with the GNU one.
+    SED_EXTENDED_FLAG="-r";
+    IS_OSX=$(uname -a | grep "Darwin");
+    if [ -n "$IS_OSX"  ]; then
+        SED_EXTENDED_FLAG="-E";
     fi;
 
     # 1 - Get all log with tags - refs and remotes
@@ -80,20 +87,24 @@ n2o_find_last_tag()
     # 4 - Just add numbers...
     # 5 - Get the line that has the info about our current remote.
     # 6 - Get the number added in step #4.
-    local remote_commit=$(git log --decorate=full                 | \
-                          egrep  "commit [[:alnum:]]{40} .*"      | \
-                          sed -r s/"commit [[:alnum:]]{40} "/""/g | \
-                          egrep -n "*"                            | \
-                          egrep "refs/remotes/$GIT_REMOTE_BRANCH" | \
-                          cut -d":" -f1);
+    TAB=$'\t'
+
+    local remote_commit=$(git log --decorate=full                                 | \
+                          egrep  "commit [[:alnum:]]{40} .*"                      | \
+                          sed $SED_EXTENDED_FLAG s/"commit [[:alnum:]]{40} "/""/g | \
+                          cat -n -                                                | \
+                          egrep "refs/remotes/$GIT_REMOTE_BRANCH"                 | \
+                          sed s/^" "*/""/ | sed s/"$TAB"/" "/g                    | \
+                          cut -d" " -f1);
 
     #Same from remote_commit, but the the our current tag info.
-    local tag_commit=$(git log --decorate=full                 | \
-                       egrep  "commit [[:alnum:]]{40} .*"      | \
-                       sed -r s/"commit [[:alnum:]]{40} "/""/g | \
-                       egrep -n "*"                            | \
-                       egrep "refs/tags/$GIT_LAST_TAG"         | \
-                       cut -d":" -f1);
+    local tag_commit=$(git log --decorate=full                                 | \
+                       egrep  "commit [[:alnum:]]{40} .*"                      | \
+                       sed $SED_EXTENDED_FLAG s/"commit [[:alnum:]]{40} "/""/g | \
+                       cat -n -                                                | \
+                       egrep "refs/remotes/$GIT_LAST_TAG"                      | \
+                       sed s/^" "*/""/ | sed s/"$TAB"/" "/g                    | \
+                       cut -d" " -f1);
 
     #Check if them are equal...
     GIT_LAST_TAG_SYNCED_WITH_REMOTE="same";
