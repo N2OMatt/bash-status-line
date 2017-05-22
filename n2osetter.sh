@@ -61,10 +61,7 @@ n2o_find_last_tag()
     unset GIT_LAST_TAG;
     unset GIT_LAST_TAG_SYNCED_WITH_REMOTE;
 
-    #[1] Find all tags and sort by date.
-    #[2] Get the newer entries - Make multiline - Remove the ()
-    #[3] Get lines with "tag" and remove it from them.
-    GIT_LAST_TAG=$(git describe --tags --abbrev=0);
+    GIT_LAST_TAG=$(git describe --tags --abbrev=0 2> /dev/null);
 
     #Check if we have more than one tag...
     local real_last_tag=$(echo $GIT_LAST_TAG | sed s/" "/"\n"/g | head -n1);
