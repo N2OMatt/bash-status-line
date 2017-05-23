@@ -18,6 +18,6 @@ n2o_update_prompt()
     fi;
 }
 
-PROMPT_COMMAND=n2o_update_prompt
-
-# bind -x '"\C-l":clear; $PROMPT_COMMAND';
+## Taken from:
+##   http://pygments.org/demo/6065499/
+PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND; }n2o_update_status_line"
