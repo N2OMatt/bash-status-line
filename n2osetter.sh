@@ -1,3 +1,4 @@
+#!/bin/bash
 ##COWTODO: Add license header....
 ################################################################################
 ## COLORS                                                                     ##
@@ -28,265 +29,228 @@ BG_W="\033[47m"
 n2o_find_local_branch()
 {
     unset GIT_LOCAL_BRANCH;
-    GIT_LOCAL_BRANCH=$(git branch 2> /dev/null                  \
-                       | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1 /' \
-                       | sed s/$" "/""/g); #Remove the trailing spaces.
-    echo $GIT_LOCAL_BRANCH;
+    IS_GIT_AND_HAVE_LOCAL=$(git rev-parse --abbrev-ref HEAD 2> /dev/null);
+
+    ## Only set if we have a local branch.
+    test $? == 0 && GIT_LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD);
 }
 
 n2o_find_remote_branch()
 {
     unset GIT_REMOTE_BRANCH;
-    GIT_REMOTE_BRANCH=$(git branch -r | cut -d">" -f2 | sort -r | head -n1 \
-                        | sed s/^" "*/""/g); #Remove the leading spaces.
-    echo $GIT_REMOTE_BRANCH;
+
+    ## Only continues with we've a local branch.
+    test -z $GIT_LOCAL_BRANCH && return;
+
+    GIT_REMOTE_BRANCH=$(             \
+        git rev-parse --abbrev-ref   \
+        $GIT_LOCAL_BRANCH@{upstream} \
+        2> /dev/null                 \
+    );
+
+    ## Ensure clean if don't have remote.
+    test $? != 0 && GIT_REMOTE_BRANCH="";
 }
 
 n2o_find_number_commits()
 {
-    unset GIT_NUMBER_COMMITS;
-    GIT_NUMBER_COMMITS="0";
+    unset GIT_NUMBER_CHANGES;
 
-    GIT_NUMBER_COMMITS=$(git status 2> /dev/null -suno | wc -l);
+    ## Only continues with we've a local branch.
+    test -z $GIT_LOCAL_BRANCH && return;
 
-    if [ "$GIT_NUMBER_COMMITS" != "0" ]; then
-        GIT_HAS_SOMETHING_TODO="true";
-    fi;
-
-    echo $GIT_NUMBER_COMMITS;
+    GIT_NUMBER_CHANGES=$(git status  -suno | wc -l);
 }
 
 n2o_find_last_tag()
 {
     unset GIT_LAST_TAG;
     unset GIT_LAST_TAG_SYNCED_WITH_REMOTE;
+    GIT_LAST_TAG_SYNCED_WITH_REMOTE=0;
 
-    GIT_LAST_TAG=$(git describe --tags --abbrev=0 2> /dev/null);
+    ## Only continues with we've a local branch.
+    test -z $GIT_LOCAL_BRANCH && return;
 
-    #Check if we have more than one tag...
-    local real_last_tag=$(echo $GIT_LAST_TAG | sed s/" "/"\n"/g | head -n1);
-    if [ "$real_last_tag" != "$GIT_LAST_TAG" ]; then
-        GIT_LAST_TAG="$real_last_tag+"; #Append a + sign to indicate this.
-    fi;
+    ## Get the last tag...
+    GIT_LAST_TAG=$(git describe --abbrev=0 --tags 2> /dev/null);
+    ## Ensure clean if don't have remote.
+    test $? != 0 && GIT_LAST_TAG="";
 
-    ## BSD you idiot...
-    ##   This is needed because OSX use the shit BSD version
-    ##   of sed that isn't compatible with the GNU one.
-    SED_EXTENDED_FLAG="-r";
-    IS_OSX=$(uname -a | grep "Darwin");
-    if [ -n "$IS_OSX"  ]; then
-        SED_EXTENDED_FLAG="-E";
-    fi;
+    ## Get remotes that has the last tag
+    ## and check if the current remote is contained.
+    #REMOTES_WITH_TAG=$(git branch -r --contains $GIT_LAST_TAG);
 
-    # 1 - Get all log with tags - refs and remotes
-    # 2 - Get all commit [SHA] lines only
-    # 3 - Remote the commit [SHA] stuff.
-    # 4 - Just add numbers...
-    # 5 - Get the line that has the info about our current remote.
-    # 6 - Get the number added in step #4.
-    TAB=$'\t'
+    ##COWTODO(n2omatt): Implement this...
 
-    local remote_commit=$(git log --decorate=full                                 | \
-                          egrep  "commit [[:alnum:]]{40} .*"                      | \
-                          sed $SED_EXTENDED_FLAG s/"commit [[:alnum:]]{40} "/""/g | \
-                          cat -n -                                                | \
-                          egrep "refs/remotes/$GIT_REMOTE_BRANCH"                 | \
-                          sed s/^" "*/""/ | sed s/"$TAB"/" "/g                    | \
-                          cut -d" " -f1);
-
-    #Same from remote_commit, but the the our current tag info.
-    local tag_commit=$(git log --decorate=full                                 | \
-                       egrep  "commit [[:alnum:]]{40} .*"                      | \
-                       sed $SED_EXTENDED_FLAG s/"commit [[:alnum:]]{40} "/""/g | \
-                       cat -n -                                                | \
-                       egrep "refs/remotes/$GIT_LAST_TAG"                      | \
-                       sed s/^" "*/""/ | sed s/"$TAB"/" "/g                    | \
-                       cut -d" " -f1);
-
-    #Check if them are equal...
-    GIT_LAST_TAG_SYNCED_WITH_REMOTE="same";
-    if [ -n "$remote_commit" -a -n "$tag_commit" ]; then
-        if [ "$remote_commit" -lt "$tag_commit" ]; then
-            GIT_LAST_TAG_SYNCED_WITH_REMOTE="remote-ahead";
-            GIT_HAS_SOMETHING_TODO="true";
-        elif [ "$remote_commit" -gt "$tag_commit" ]; then
-            GIT_LAST_TAG_SYNCED_WITH_REMOTE="local-ahead";
-            GIT_HAS_SOMETHING_TODO="true";
-        fi;
-
-    fi;
-
-    echo "GIT_LAST_TAG       $GIT_LAST_TAG";
-    echo "GIT_REMOTE_BRANCH" $GIT_REMOTE_BRANCH;
-    echo "tag_commit         $tag_commit";
-    echo "remote_commit      $remote_commit";
-    echo "GIT_LAST_TAG_SYNCED_WITH_REMOTE $GIT_LAST_TAG_SYNCED_WITH_REMOTE";
 }
 
 n2o_find_number_pushs()
 {
     unset GIT_NUMBER_PUSHS;
-    GIT_NUMBER_PUSHS="0";
+    GIT_NUMBER_PUSHS=0;
 
-    #We must have local and remote to do this.
-    if [ -n "$GIT_LOCAL_BRANCH" -a -n "$GIT_REMOTE_BRANCH" ]; then
-        GIT_NUMBER_PUSHS=$(git log 2> /dev/null \
-                           $GIT_REMOTE_BRANCH..$GIT_LOCAL_BRANCH --oneline \
-                           | wc -l);
-    fi;
+    ## Only continues with we've a local and remote branch.
+    test -z $GIT_LOCAL_BRANCH  && return;
+    test -z $GIT_REMOTE_BRANCH && return;
 
-    if [ "$GIT_NUMBER_PUSHS" != "0" ]; then
-        GIT_HAS_SOMETHING_TODO="true";
-    fi;
+    GIT_NUMBER_PUSHS=$(                                 \
+        git log 2> /dev/null                            \
+        $GIT_REMOTE_BRANCH..$GIT_LOCAL_BRANCH --oneline \
+        | wc -l                                         \
+    );
 
-    echo $GIT_NUMBER_PUSHS;
+    ## We want the digit instead of a empty space...
+    test -z $GIT_NUMBER_PUSHS && GIT_NUMBER_PUSHS=0;
 }
 
 n2o_find_number_pulls()
 {
     unset GIT_NUMBER_PULLS;
-    GIT_NUMBER_PULLS="0";
+    GIT_NUMBER_PULLS=0;
 
-    #We must have local and remote to do this.
-    if [ -n "$GIT_LOCAL_BRANCH" -a -n "$GIT_REMOTE_BRANCH" ]; then
-        GIT_NUMBER_PULLS=$(git log 2> /dev/null \
-                           $GIT_LOCAL_BRANCH..$GIT_REMOTE_BRANCH --oneline \
-                           | wc -l);
-    fi;
+    ## Only continues with we've a local and remote branch.
+    test -z $GIT_LOCAL_BRANCH  && return;
+    test -z $GIT_REMOTE_BRANCH && return;
 
-    if [ "$GIT_NUMBER_PULLS" != "0" ]; then
-        GIT_HAS_SOMETHING_TODO="true";
-    fi;
+    GIT_NUMBER_PULLS=$(                                 \
+        git log 2> /dev/null                            \
+        $GIT_LOCAL_BRANCH..$GIT_REMOTE_BRANCH --oneline \
+        | wc -l                                         \
+    );
 
-    echo $GIT_NUMBER_PULLS;
+    ## We want the digit instead of a empty space...
+    test -z $GIT_NUMBER_PULLS && GIT_NUMBER_PULLS=0;
 }
+
+check_something_todo()
+{
+    unset GIT_HAS_SOMETHING_TODO;
+    GIT_HAS_SOMETHING_TODO=0;
+
+    test $GIT_LAST_TAG_SYNCED_WITH_REMOTE != 0 && GIT_HAS_SOMETHING_TODO=1;
+    test $GIT_NUMBER_CHANGES              != 0 && GIT_HAS_SOMETHING_TODO=1;
+    test $GIT_NUMBER_PUSHS                != 0 && GIT_HAS_SOMETHING_TODO=1;
+    test $GIT_NUMBER_PULLS                != 0 && GIT_HAS_SOMETHING_TODO=1;
+}
+
 
 ################################################################################
-## Build GIT Info String Functions                                            ##
+## GIT String Functions                                                       ##
 ################################################################################
-n2o_build_str_git_local_branch()
+build_str_number_changes()
 {
-    GIT_INFO+="[$GIT_LOCAL_BRANCH]";
-    GIT_TOTAL_CHARS=$(( GIT_TOTAL_CHARS + ${#GIT_LOCAL_BRANCH} + 2 ));
+    unset STR_NUMBER_CHANGES;
+
+    ## Green -> No changes
+    ## Red   -> With changes.
+    STR_NUMBER_CHANGES=${FG_G};
+    test $GIT_NUMBER_CHANGES != 0 && STR_NUMBER_CHANGES=${FG_R};
+
+    STR_NUMBER_CHANGES+="$GIT_NUMBER_CHANGES${RESET}";
 }
 
-n2o_build_str_git_remote_branch()
+build_str_number_pulls()
 {
-    if [ -z "$GIT_REMOTE_BRANCH" ]; then
-        return;
-    fi;
+    unset STR_NUMBER_PULLS;
 
-    GIT_INFO+="[$GIT_REMOTE_BRANCH]";
-    GIT_TOTAL_CHARS=$(( GIT_TOTAL_CHARS + ${#GIT_REMOTE_BRANCH} + 2 ));
+    ## Green -> No changes
+    ## Red   -> With changes.
+    STR_NUMBER_PULLS=${FG_G};
+    test $GIT_NUMBER_PULLS != 0 && STR_NUMBER_PULLS=${FG_R};
+
+    STR_NUMBER_PULLS+="$GIT_NUMBER_PULLS${RESET}";
 }
 
-n2o_build_str_git_number_commits()
+build_str_number_pushs()
 {
-    local SC="${FG_R}";
-    local EC="${RESET}";
+    unset STR_NUMBER_PUSHS;
 
-    if [ "$GIT_NUMBER_COMMITS" = "0" ]; then
-        SC="${FG_G}";
-    fi;
+    ## Green -> No changes
+    ## Red   -> With changes.
+    STR_NUMBER_PUSHS=${FG_G};
+    test $GIT_NUMBER_PUSHS != 0 && STR_NUMBER_PUSHS=${FG_R};
 
-    GIT_INFO+="[${SC}$GIT_NUMBER_COMMITS${EC}]";
-    GIT_TOTAL_CHARS=$(( GIT_TOTAL_CHARS + ${#GIT_NUMBER_COMMITS} + 2 ));
+    STR_NUMBER_PUSHS+="$GIT_NUMBER_PUSHS${RESET}";
 }
 
-n2o_build_str_git_last_tag()
+build_str_last_tag()
 {
-    if [ -z "$GIT_LAST_TAG" ]; then
-        return;
-    fi;
+    unset STR_LAST_TAG;
+    test -z $GIT_LAST_TAG && return;
 
-    local SC="${FG_Y}";
-    local EC="${RESET}";
-    local sync_info=""
+    ## When tag is not syncronized show it in red background.
+    STR_LAST_TAG=${FG_Y};
+    test $GIT_LAST_TAG_SYNCED_WITH_REMOTE != 0 && STR_LAST_TAG=${BG_R};
 
-    if [ "$GIT_LAST_TAG_SYNCED_WITH_REMOTE" = "same" ]; then
-        sync_info="${FG_G}[S]${EC}";
-    elif [ "$GIT_LAST_TAG_SYNCED_WITH_REMOTE" = "remote-ahead" ]; then
-        sync_info="${FG_R}[c]${EC}";
-    elif [ "$GIT_LAST_TAG_SYNCED_WITH_REMOTE" = "local-ahead" ]; then
-        sync_info="${BG_R}${FG_W}[P]${EC}";
-    fi;
-
-    GIT_INFO+="(${SC}$GIT_LAST_TAG${EC}$sync_info)";
-    GIT_TOTAL_CHARS=$(( GIT_TOTAL_CHARS + ${#GIT_LAST_TAG} + 2 + 3 ));
+    STR_LAST_TAG+="$GIT_LAST_TAG${RESET}";
 }
 
-n2o_build_str_git_number_pushs()
+calculate_git_line_length()
 {
-    if [ -z "$GIT_REMOTE_BRANCH" ]; then
-        return;
-    fi;
-
-    local SC="${FG_R}";
-    local EC="${RESET}";
-
-    if [ "$GIT_NUMBER_PUSHS" = "0" ]; then
-        SC="${FG_G}";
-    fi;
-
-    GIT_INFO+="(${SC}$GIT_NUMBER_PUSHS${EC}/";
-    GIT_TOTAL_CHARS=$(( GIT_TOTAL_CHARS + ${#GIT_NUMBER_PUSHS} + 2 ));
+    unset GIT_LINE_LENGTH;
+    GIT_LINE_LENGTH=${#GIT_CLEAN_LINE};
 }
 
-n2o_build_str_git_number_pulls()
-{
-    if [ -z "$GIT_REMOTE_BRANCH" ]; then
-        return;
-    fi;
-
-    local SC="${FG_R}";
-    local EC="${RESET}";
-
-    if [ "$GIT_NUMBER_PULLS" = "0" ]; then
-        SC="${FG_G}";
-    fi;
-
-    GIT_INFO+="${SC}$GIT_NUMBER_PULLS${EC})";
-    GIT_TOTAL_CHARS=$(( GIT_TOTAL_CHARS + ${#GIT_NUMBER_PULL} + 2 ));
-}
 
 ################################################################################
 ## Set functions                                                              ##
 ################################################################################
 n2o_set_git_info()
 {
-    unset GIT_INFO;
-    unset GIT_TOTAL_CHARS;
+    unset GIT_COLOR_LINE;
     unset GIT_HAS_SOMETHING_TODO;
 
-    GIT_TOTAL_CHARS=0;
-    GIT_HAS_SOMETHING_TODO="false";
+    GIT_COLOR_LINE="";
+    GIT_CLEAN_LINE=""
+    GIT_LINE_LENGTH=0;
 
     ##Assume that we're in git dir and get the local branch name.
-    n2o_find_local_branch > /dev/null;
+    n2o_find_local_branch;
+    ## Only continues with we have the local branch...
+    test -z $GIT_LOCAL_BRANCH && return;
 
-    #Not in a git repo - Nothing to do anymore...
-    if [ -z $GIT_LOCAL_BRANCH ]; then
-        return;
-    fi
+    n2o_find_number_commits;
+    n2o_find_remote_branch;
+    n2o_find_last_tag;
+    n2o_find_number_pushs;
+    n2o_find_number_pulls;
 
-    n2o_find_number_commits > /dev/null;
-    n2o_find_remote_branch  > /dev/null;
-    n2o_find_last_tag       > /dev/null;
-    n2o_find_number_pushs   > /dev/null;
-    n2o_find_number_pulls   > /dev/null;
+    build_str_last_tag;
+    build_str_number_changes;
+    build_str_number_pulls;
+    build_str_number_pushs;
 
-    n2o_build_str_git_last_tag;
-    n2o_build_str_git_local_branch;
-    n2o_build_str_git_number_commits;
-    n2o_build_str_git_remote_branch;
-    n2o_build_str_git_number_pushs;
-    n2o_build_str_git_number_pulls;
+    ## Last tag.
+    if [ -n "$GIT_LAST_TAG" ]; then
+         GIT_CLEAN_LINE="[$GIT_LAST_TAG]";
+         GIT_COLOR_LINE="[$STR_LAST_TAG]";
+    fi;
+
+    ## Number of changes.
+    GIT_CLEAN_LINE+="[$GIT_NUMBER_CHANGES]";
+    GIT_COLOR_LINE+="[$STR_NUMBER_CHANGES]";
+
+    ## Local branch.
+    GIT_CLEAN_LINE+="[$GIT_LOCAL_BRANCH]";
+    GIT_COLOR_LINE+="[$GIT_LOCAL_BRANCH]";
+
+    ## Remote info...
+    if [ -n "$GIT_REMOTE_BRANCH" ]; then
+        GIT_CLEAN_LINE+="[$GIT_REMOTE_BRANCH]";
+        GIT_COLOR_LINE+="[$GIT_REMOTE_BRANCH]";
+
+        GIT_CLEAN_LINE+="($GIT_NUMBER_PUSHS/$GIT_NUMBER_PULLS)";
+        GIT_COLOR_LINE+="($STR_NUMBER_PUSHS/$STR_NUMBER_PULLS)";
+    fi;
+
+    calculate_git_line_length;
+    check_something_todo;
 }
 
 n2o_set_dir_info()
 {
-    unset DIR_INFO;
-    unset DIR_TOTAL_CHARS;
+    unset DIR_LINE;
+    unset DIR_LINE_LENGTH;
 
     #If we are / or one level below / (ex: /usr, /bin)
     #take more care to not print extra slashes.
@@ -294,7 +258,7 @@ n2o_set_dir_info()
     local tail_path=$(basename "$PWD");
     local separator="/";
 
-    if [ "$head_path" = "/" ]; then
+     if [ "$head_path" = "/" ]; then
         separator="";
         if [ "$tail_path" = "/" ]; then
             tail_path="";
@@ -302,45 +266,47 @@ n2o_set_dir_info()
     fi;
 
 
-    DIR_INFO="$head_path$separator$tail_path";
+     DIR_LINE="$head_path$separator$tail_path";
 
-    local dir_info_size=${#DIR_INFO};
-    local max_dir_info_size=$(( $COLUMNS - ($GIT_TOTAL_CHARS + 2) ));
+     local dir_info_size=${#DIR_LINE};
+     local max_dir_info_size=$(( $COLUMNS - ($GIT_LINE_LENGTH + 2) ));
                                             #2 is for [ ] in the dir info.
 
-    if [ $dir_info_size -gt $max_dir_info_size ]; then
-                                                #3 is for the ellipsis ...
-        local chars_to_cut=$(( (dir_info_size - max_dir_info_size) + 3 ));
-        DIR_INFO="..."${DIR_INFO:$chars_to_cut:$dir_info_size }
-    fi;
+     if [ $dir_info_size -gt $max_dir_info_size ]; then
+                                                 #3 is for the ellipsis ...
+         local chars_to_cut=$(( (dir_info_size - max_dir_info_size) + 3 ));
+         DIR_LINE="..."${DIR_LINE:$chars_to_cut:$dir_info_size }
+     fi;
 
 
-    local SC=${BG_W};
-    local EC=${RESET};
+     local SC=${BG_W};
+     local EC=${RESET};
 
-    if [ -n "$GIT_LOCAL_BRANCH" ]; then
-        SC=${BG_G}
+     if [ -n "$GIT_LOCAL_BRANCH" ]; then
+         SC=${BG_G}
 
-        if [ "$GIT_HAS_SOMETHING_TODO" = "true" ]; then
+        if [ $GIT_HAS_SOMETHING_TODO != 0 ]; then
             SC=${BG_R};
         fi;
     fi
 
     SC+=${FG_K};
 
-    DIR_INFO="[$DIR_INFO]";
-    DIR_TOTAL_CHARS=${#DIR_INFO};
+    DIR_LINE="[$DIR_LINE]";
+    DIR_LINE_LENGTH=${#DIR_LINE};
 
-    DIR_INFO="${SC}$DIR_INFO${EC}";
+    DIR_LINE="${SC}$DIR_LINE${EC}";
 }
 
 n2o_set_status_line()
 {
+    local spaces_len=$(( COLUMNS - (DIR_LINE_LENGTH + GIT_LINE_LENGTH) ));
+
     local lines=`tput lines`
 
     tput sc #Save the cursor.
 
-    non_scroll_line=$(($lines - 1))
+    non_scroll_line=$(($lines  - 1))
     scroll_region="0 $(($lines - 2))"
 
     tput csr $scroll_region
@@ -352,13 +318,12 @@ n2o_set_status_line()
     # Reprint the status line
     tput cup $non_scroll_line 0
 
-    local spaces_len=$(( COLUMNS - (DIR_TOTAL_CHARS + GIT_TOTAL_CHARS) ));
-
-    echo -en $DIR_INFO;
+    echo -en $DIR_LINE;
     for i in $(seq 1 $spaces_len); do
         echo -en " ";
     done
-    echo -en $GIT_INFO;
+
+    echo -en $GIT_COLOR_LINE;
 
     tput rc
 }
@@ -370,3 +335,5 @@ n2o_update_status_line()
     n2o_set_dir_info
     n2o_set_status_line
 }
+
+n2o_update_status_line;
