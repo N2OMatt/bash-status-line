@@ -11,7 +11,7 @@
 ##  Date      : Apr 12, 2016                                                  ##
 ##  License   : GPLv3                                                         ##
 ##  Author    : n2omatt <n2omatt@amazingcow.com>                              ##
-##  Copyright : n2omatt - 2016, 2017                                          ##
+##  Copyright : n2omatt - 2016 - 2018                                         ##
 ##                                                                            ##
 ##  Description :                                                             ##
 ##                                                                            ##
@@ -318,22 +318,16 @@ n2o_set_dir_info()
 n2o_set_status_line()
 {
     local spaces_len=$(( COLUMNS - (DIR_LINE_LENGTH + GIT_LINE_LENGTH) ));
+    local line_max=$(( LINES ));
 
-    local lines=`tput lines`
-
-    tput sc #Save the cursor.
-
-    non_scroll_line=$(($lines  - 1))
-    scroll_region="0 $(($lines - 2))"
-
-    tput csr $scroll_region
-
-    # Clear out the status line
-    tput cup $non_scroll_line 0
-    tput rc
-
-    # Reprint the status line
-    tput cup $non_scroll_line 0
+    ##--------------------------------------------------------------------------
+    ## \e[ introduces most of the special commands
+    ## \e[s saves the current cursor position
+    ## \e[L,CH positions the cursor at row line, column column
+    ## \e[K clears to end of line
+    ## \e[u restores the cursor position
+    echo -en "\033[s\033[$line_max;1H"
+    echo -en "\033[K"
 
     echo -en $DIR_LINE;
     for i in $(seq 1 $spaces_len); do
@@ -342,7 +336,7 @@ n2o_set_status_line()
 
     echo -en $GIT_COLOR_LINE;
 
-    tput rc
+    echo -en "\033[u";
 }
 
 
