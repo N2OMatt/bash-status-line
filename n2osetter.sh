@@ -50,6 +50,7 @@ n2o_find_local_branch()
 
     ## Only set if we have a local branch.
     test $? == 0 && GIT_LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD);
+    GIT_LOCAL_BRANCH=$(echo $GIT_LOCAL_BRANCH | xargs);
 }
 
 n2o_find_remote_branch()
@@ -67,6 +68,7 @@ n2o_find_remote_branch()
 
     ## Ensure clean if don't have remote.
     test $? != 0 && GIT_REMOTE_BRANCH="";
+    GIT_REMOTE_BRANCH=$(echo $GIT_REMOTE_BRANCH | xargs);
 }
 
 n2o_find_number_commits()
@@ -77,6 +79,7 @@ n2o_find_number_commits()
     test -z $GIT_LOCAL_BRANCH && return;
 
     GIT_NUMBER_CHANGES=$(git status  -suno | wc -l);
+    GIT_NUMBER_CHANGES=$(echo $GIT_NUMBER_CHANGES | xargs);
 }
 
 n2o_find_last_tag()
@@ -92,7 +95,8 @@ n2o_find_last_tag()
     GIT_LAST_TAG=$(git describe --abbrev=0 --tags 2> /dev/null);
     ## Ensure clean if don't have remote.
     test $? != 0 && GIT_LAST_TAG="";
-
+    
+    GIT_LAST_TAG=$(echo $GIT_LAST_TAG | xargs);
     ## Get remotes that has the last tag
     ## and check if the current remote is contained.
     #REMOTES_WITH_TAG=$(git branch -r --contains $GIT_LAST_TAG);
@@ -118,6 +122,7 @@ n2o_find_number_pushs()
 
     ## We want the digit instead of a empty space...
     test -z $GIT_NUMBER_PUSHS && GIT_NUMBER_PUSHS=0;
+    GIT_NUMBER_PUSHS=$(echo $GIT_NUMBER_PUSHS | xargs);
 }
 
 n2o_find_number_pulls()
@@ -137,6 +142,7 @@ n2o_find_number_pulls()
 
     ## We want the digit instead of a empty space...
     test -z $GIT_NUMBER_PULLS && GIT_NUMBER_PULLS=0;
+    GIT_NUMBER_PULLS=$(echo $GIT_NUMBER_PULLS | xargs);
 }
 
 check_something_todo()
