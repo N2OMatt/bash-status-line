@@ -17,17 +17,46 @@
 ##                                                                            ##
 ##---------------------------------------------------------------------------~##
 
-##COWTODO: Make this script nicer...
+##----------------------------------------------------------------------------##
+## Helper Functions                                                           ##
+##----------------------------------------------------------------------------##
+find_real_user_home()
+{
+    if [ $UID == 0 ]; then
+        USER=$(printenv SUDO_USER);
+        if [ -z "$USER" ]; then
+            echo "Installing as root user...";
+            export REAL_USER_HOME="$HOME";
+        else
+            echo "Installing with sudo...";
+            export REAL_USER_HOME=$(getent passwd "$USER" | cut -d: -f6);
+        fi;
+    else
+        echo "Installing as normal user...";
+        export REAL_USER_HOME="$HOME";
+    fi;
+}
 
-if [ -e $HOME/.bashrc ]; then
-    mkdir -p $HOME/.n2o/bash-status-line
-    cp -f n2orc.sh n2osetter.sh $HOME/.n2o/bash-status-line/
 
-    FILENAME=$HOME/.n2o/bash-status-line/n2orc.sh
-    GREP_RESULT=$(cat $HOME/.bashrc | grep "$FILENAME");
+##----------------------------------------------------------------------------##
+## Script                                                                     ##
+##----------------------------------------------------------------------------##
+find_real_user_home
+
+if [ -e $REAL_USER_HOME/.bashrc ]; then
+    mkdir -vp $REAL_USER_HOME/.n2o/bash-status-line
+
+    cp -vf n2orc.sh n2osetter.sh $REAL_USER_HOME/.n2o/bash-status-line/
+
+    FILENAME=$REAL_USER_HOME/.n2o/bash-status-line/n2orc.sh
+    GREP_RESULT=$(cat $REAL_USER_HOME/.bashrc | grep "$FILENAME");
+
+    ## Debug...
+    echo "FILENAME   : $FILENAME";
+    echo "GREPRESULT : $GrEP_RESULT";
 
     if [ -z  "$GREP_RESULT" ]; then
-        echo "[[ -s \"$FILENAME\" ]] && source \"$FILENAME\"" >> $HOME/.bashrc;
+        echo "[[ -s \"$FILENAME\" ]] && source \"$FILENAME\"" >> $REAL_USER_HOME/.bashrc;
     fi;
 
     echo "Installed...";
