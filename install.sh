@@ -18,46 +18,34 @@
 ##---------------------------------------------------------------------------~##
 
 ##----------------------------------------------------------------------------##
-## Helper Functions                                                           ##
+## Imports                                                                    ##
 ##----------------------------------------------------------------------------##
-find_real_user_home()
-{
-    if [ $UID == 0 ]; then
-        USER=$(printenv SUDO_USER);
-        if [ -z "$USER" ]; then
-            echo "Installing as root user...";
-            export REAL_USER_HOME="$HOME";
-        else
-            echo "Installing with sudo...";
-            export REAL_USER_HOME=$(getent passwd "$USER" | cut -d: -f6);
-        fi;
-    else
-        echo "Installing as normal user...";
-        export REAL_USER_HOME="$HOME";
-    fi;
-}
+source /usr/local/src/acow_shellscript_utils.sh
 
 
 ##----------------------------------------------------------------------------##
 ## Script                                                                     ##
 ##----------------------------------------------------------------------------##
-find_real_user_home
+center_text " [bash-status-line installer] ";
 
-if [ -e $REAL_USER_HOME/.bashrc ]; then
-    mkdir -vp $REAL_USER_HOME/.n2o/bash-status-line
+REAL_USER_HOME=$(find_real_user_home);
+if [ -e "$REAL_USER_HOME/.bashrc" ]; then
+    mkdir -vp "$REAL_USER_HOME/.n2o/bash-status-line";
 
     cp -vf n2orc.sh n2osetter.sh $REAL_USER_HOME/.n2o/bash-status-line/
 
-    FILENAME=$REAL_USER_HOME/.n2o/bash-status-line/n2orc.sh
-    GREP_RESULT=$(cat $REAL_USER_HOME/.bashrc | grep "$FILENAME");
+    FILENAME="$REAL_USER_HOME/.n2o/bash-status-line/n2orc.sh";
+    GREP_RESULT=$(cat "$REAL_USER_HOME/.bashrc" | grep "$FILENAME");
 
     ## Debug...
-    echo "FILENAME   : $FILENAME";
-    echo "GREPRESULT : $GrEP_RESULT";
+    # echo "FILENAME   : $FILENAME";
+    # echo "GREPRESULT : $GREP_RESULT";
 
-    if [ -z  "$GREP_RESULT" ]; then
+    if [ -z "$GREP_RESULT" ]; then
         echo "[[ -s \"$FILENAME\" ]] && source \"$FILENAME\"" >> $REAL_USER_HOME/.bashrc;
     fi;
-
-    echo "Installed...";
 fi
+
+echo -e "\n Installed...";
+center_text "";
+echo -e "\n";
