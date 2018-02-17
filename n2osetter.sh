@@ -329,7 +329,7 @@ n2o_set_status_line()
     echo -en "\033[s\033[$line_max;1H"
     echo -en "\033[K"
 
-    echo -en $DIR_LINE;
+    echo -en "$DIR_LINE";
     for i in $(seq 1 $spaces_len); do
         echo -en " ";
     done
