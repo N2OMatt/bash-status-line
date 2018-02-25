@@ -40,16 +40,24 @@ BG_M="\033[45m"
 BG_C="\033[46m"
 BG_W="\033[47m"
 
+
 ################################################################################
 ## Find GIT Info Functions                                                    ##
 ################################################################################
+n2o_find_repo_name()
+{
+    unset GIT_REPO_NAME;
+    $(git rev-parse --show-toplevel > /dev/null 2>&1);
+
+    test $? == 0 && GIT_REPO_NAME=$(basename $(git rev-parse --show-toplevel));
+}
+
 n2o_find_local_branch()
 {
     unset GIT_LOCAL_BRANCH;
-    IS_GIT_AND_HAVE_LOCAL=$(git rev-parse --abbrev-ref HEAD 2> /dev/null);
 
     ## Only set if we have a local branch.
-    test $? == 0 && GIT_LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD);
+    test -n "$GIT_REPO_NAME" && GIT_LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD);
 }
 
 n2o_find_remote_branch()
@@ -57,7 +65,7 @@ n2o_find_remote_branch()
     unset GIT_REMOTE_BRANCH;
 
     ## Only continues with we've a local branch.
-    test -z $GIT_LOCAL_BRANCH && return;
+    test -z "$GIT_LOCAL_BRANCH" && return;
 
     GIT_REMOTE_BRANCH=$(             \
         git rev-parse --abbrev-ref   \
@@ -74,7 +82,7 @@ n2o_find_number_commits()
     unset GIT_NUMBER_CHANGES;
 
     ## Only continues with we've a local branch.
-    test -z $GIT_LOCAL_BRANCH && return;
+    test -z "$GIT_LOCAL_BRANCH" && return;
 
     GIT_NUMBER_CHANGES=$(git status  -suno | wc -l);
 }
@@ -86,7 +94,7 @@ n2o_find_last_tag()
     GIT_LAST_TAG_SYNCED_WITH_REMOTE=0;
 
     ## Only continues with we've a local branch.
-    test -z $GIT_LOCAL_BRANCH && return;
+    test -z "$GIT_LOCAL_BRANCH" && return;
 
     ## Get the last tag...
     GIT_LAST_TAG=$(git describe --abbrev=0 --tags 2> /dev/null);
@@ -107,8 +115,8 @@ n2o_find_number_pushs()
     GIT_NUMBER_PUSHS=0;
 
     ## Only continues with we've a local and remote branch.
-    test -z $GIT_LOCAL_BRANCH  && return;
-    test -z $GIT_REMOTE_BRANCH && return;
+    test -z "$GIT_LOCAL_BRANCH"  && return;
+    test -z "$GIT_REMOTE_BRANCH" && return;
 
     GIT_NUMBER_PUSHS=$(                                 \
         git log 2> /dev/null                            \
@@ -126,8 +134,8 @@ n2o_find_number_pulls()
     GIT_NUMBER_PULLS=0;
 
     ## Only continues with we've a local and remote branch.
-    test -z $GIT_LOCAL_BRANCH  && return;
-    test -z $GIT_REMOTE_BRANCH && return;
+    test -z "$GIT_LOCAL_BRANCH"  && return;
+    test -z "$GIT_REMOTE_BRANCH" && return;
 
     GIT_NUMBER_PULLS=$(                                 \
         git log 2> /dev/null                            \
@@ -142,12 +150,15 @@ n2o_find_number_pulls()
 check_something_todo()
 {
     unset GIT_HAS_SOMETHING_TODO;
-    GIT_HAS_SOMETHING_TODO=0;
+    GIT_HAS_SOMETHING_TODO="false";
 
-    test $GIT_LAST_TAG_SYNCED_WITH_REMOTE != 0 && GIT_HAS_SOMETHING_TODO=1;
-    test $GIT_NUMBER_CHANGES              != 0 && GIT_HAS_SOMETHING_TODO=1;
-    test $GIT_NUMBER_PUSHS                != 0 && GIT_HAS_SOMETHING_TODO=1;
-    test $GIT_NUMBER_PULLS                != 0 && GIT_HAS_SOMETHING_TODO=1;
+    ## Not in a git repo...
+    test -z "$GIT_REPO_NAME" && return;
+
+    test "$GIT_LAST_TAG_SYNCED_WITH_REMOTE" != "0" && GIT_HAS_SOMETHING_TODO="true";
+    test "$GIT_NUMBER_CHANGES"              != "0" && GIT_HAS_SOMETHING_TODO="true";
+    test "$GIT_NUMBER_PUSHS"                != "0" && GIT_HAS_SOMETHING_TODO="true";
+    test "$GIT_NUMBER_PULLS"                != "0" && GIT_HAS_SOMETHING_TODO="true";
 }
 
 
@@ -221,11 +232,13 @@ n2o_set_git_info()
     GIT_CLEAN_LINE=""
     GIT_LINE_LENGTH=0;
 
-    ##Assume that we're in git dir and get the local branch name.
-    n2o_find_local_branch;
-    ## Only continues with we have the local branch...
-    test -z $GIT_LOCAL_BRANCH && return;
+    ## Assume that we're in git dir and get the local branch name.
+    n2o_find_repo_name;
 
+    ## Only continues with we have the local branch...
+    test -z "$GIT_REPO_NAME" && return;
+
+    n2o_find_local_branch;
     n2o_find_number_commits;
     n2o_find_remote_branch;
     n2o_find_last_tag;
@@ -248,8 +261,8 @@ n2o_set_git_info()
     GIT_COLOR_LINE+="[$STR_NUMBER_CHANGES]";
 
     ## Local branch.
-    GIT_CLEAN_LINE+="[$GIT_LOCAL_BRANCH]";
-    GIT_COLOR_LINE+="[$GIT_LOCAL_BRANCH]";
+    GIT_CLEAN_LINE+="[${GIT_REPO_NAME}:${GIT_LOCAL_BRANCH}]";
+    GIT_COLOR_LINE+="[${GIT_REPO_NAME}:${GIT_LOCAL_BRANCH}]";
 
     ## Remote info...
     if [ -n "$GIT_REMOTE_BRANCH" ]; then
@@ -269,40 +282,40 @@ n2o_set_dir_info()
     unset DIR_LINE;
     unset DIR_LINE_LENGTH;
 
-    #If we are / or one level below / (ex: /usr, /bin)
-    #take more care to not print extra slashes.
+    ##--------------------------------------------------------------------------
+    ## If we are / or one level below / (ex: /usr, /bin)
+    ## take more care to not print extra slashes.
     local head_path=$(basename "$(dirname "$PWD")");
     local tail_path=$(basename "$PWD");
     local separator="/";
 
-     if [ "$head_path" = "/" ]; then
+    if [ "$head_path" == "/" ]; then
         separator="";
-        if [ "$tail_path" = "/" ]; then
+        if [ "$tail_path" == "/" ]; then
             tail_path="";
         fi;
     fi;
 
+    DIR_LINE="$head_path$separator$tail_path";
 
-     DIR_LINE="$head_path$separator$tail_path";
-
-     local dir_info_size=${#DIR_LINE};
-     local max_dir_info_size=$(( $COLUMNS - ($GIT_LINE_LENGTH + 2) ));
+    local dir_info_size=${#DIR_LINE};
+    local max_dir_info_size=$(( $COLUMNS - ($GIT_LINE_LENGTH + 2) ));
                                             #2 is for [ ] in the dir info.
 
-     if [ $dir_info_size -gt $max_dir_info_size ]; then
-                                                 #3 is for the ellipsis ...
-         local chars_to_cut=$(( (dir_info_size - max_dir_info_size) + 3 ));
-         DIR_LINE="..."${DIR_LINE:$chars_to_cut:$dir_info_size }
-     fi;
+    if [ "$dir_info_size" -gt "$max_dir_info_size" ]; then
+                                                #3 is for the ellipsis ...
+        local chars_to_cut=$(( (dir_info_size - max_dir_info_size) + 3 ));
+        DIR_LINE="..."${DIR_LINE:$chars_to_cut:$dir_info_size }
+    fi;
 
 
-     local SC=${BG_W};
-     local EC=${RESET};
+    local SC=${BG_W};
+    local EC=${RESET};
 
-     if [ -n "$GIT_LOCAL_BRANCH" ]; then
-         SC=${BG_G}
+    if [ -n "$GIT_REPO_NAME" ]; then
+        SC=${BG_G}
 
-        if [ $GIT_HAS_SOMETHING_TODO != 0 ]; then
+        if [ "$GIT_HAS_SOMETHING_TODO" != "false" ]; then
             SC=${BG_R};
         fi;
     fi
