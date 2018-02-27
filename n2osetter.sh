@@ -63,7 +63,13 @@ n2o_find_local_branch()
     unset GIT_LOCAL_BRANCH;
 
     ## Only set if we have a local branch.
-    test -n "$GIT_REPO_NAME" && GIT_LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD);
+    test -z "$GIT_REPO_NAME" && return;
+
+    ## This is need in case that we are in a brand new repository...
+    $(git rev-parse --abbrev-ref HEAD > /dev/null 2>&1);
+    test "$?" != "0" && return;
+
+    GIT_LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD);
 }
 
 n2o_find_remote_branch()
@@ -80,7 +86,7 @@ n2o_find_remote_branch()
     );
 
     ## Ensure clean if don't have remote.
-    test $? != 0 && GIT_REMOTE_BRANCH="";
+    test "$?" != "0" && GIT_REMOTE_BRANCH="";
 }
 
 n2o_find_number_commits()
@@ -105,7 +111,7 @@ n2o_find_last_tag()
     ## Get the last tag...
     GIT_LAST_TAG=$(git describe --abbrev=0 --tags 2> /dev/null);
     ## Ensure clean if don't have remote.
-    test $? != 0 && GIT_LAST_TAG="";
+    test "$?" != "0" && GIT_LAST_TAG="";
 
     ## Get remotes that has the last tag
     ## and check if the current remote is contained.
@@ -178,7 +184,7 @@ build_str_number_changes()
     ## Green -> No changes
     ## Red   -> With changes.
     STR_NUMBER_CHANGES=${FG_G};
-    test $GIT_NUMBER_CHANGES != 0 && STR_NUMBER_CHANGES=${FG_R};
+    test "$GIT_NUMBER_CHANGES" != "0" && STR_NUMBER_CHANGES=${FG_R};
 
     STR_NUMBER_CHANGES+="$GIT_NUMBER_CHANGES${RESET}";
 }
@@ -190,7 +196,7 @@ build_str_number_pulls()
     ## Green -> No changes
     ## Red   -> With changes.
     STR_NUMBER_PULLS=${FG_G};
-    test $GIT_NUMBER_PULLS != 0 && STR_NUMBER_PULLS=${FG_R};
+    test "$GIT_NUMBER_PULLS" != "0" && STR_NUMBER_PULLS=${FG_R};
 
     STR_NUMBER_PULLS+="$GIT_NUMBER_PULLS${RESET}";
 }
@@ -202,7 +208,7 @@ build_str_number_pushs()
     ## Green -> No changes
     ## Red   -> With changes.
     STR_NUMBER_PUSHS=${FG_G};
-    test $GIT_NUMBER_PUSHS != 0 && STR_NUMBER_PUSHS=${FG_R};
+    test "$GIT_NUMBER_PUSHS" != "0" && STR_NUMBER_PUSHS=${FG_R};
 
     STR_NUMBER_PUSHS+="$GIT_NUMBER_PUSHS${RESET}";
 }
@@ -214,7 +220,7 @@ build_str_last_tag()
 
     ## When tag is not syncronized show it in red background.
     STR_LAST_TAG=${FG_Y};
-    test $GIT_LAST_TAG_SYNCED_WITH_REMOTE != 0 && STR_LAST_TAG=${BG_R};
+    test "$GIT_LAST_TAG_SYNCED_WITH_REMOTE" != "0" && STR_LAST_TAG=${BG_R};
 
     STR_LAST_TAG+="$GIT_LAST_TAG${RESET}";
 }
